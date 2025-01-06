@@ -21,6 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "peppi-py>=0.7.1",
+    "tomli-w",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -35,3 +36,4 @@ Issues = "https://github.com/davisdude/slp2mp4/issues"
 
 [project.scripts]
 slp2mp4 = "slp2mp4.main:main"
+slp2mp4-gui = "slp2mp4.gui:main"

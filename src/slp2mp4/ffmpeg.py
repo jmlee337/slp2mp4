@@ -3,6 +3,9 @@
 import pathlib
 import tempfile
 import subprocess
+import time
+import os
+import glob
 
 import slp2mp4.util as util
 
@@ -20,24 +23,33 @@ class FfmpegRunner:
         output_file: pathlib.Path,
         reencode=False,
     ):
+        # Sort framedumps by last modified time, then merge
+        # Using glob because it gives full relative directory
+        framedumps = glob.glob(os.path.join(video_file.parent, '*'))
+        framedumps.sort(key=os.path.getmtime)
+        ffmpeg_pat = 'concat:' + '|'.join(framedumps)
+        video_file = os.path.join(video_file.parent, 'framedump.avi')
+        subprocess.run([self.ffmpeg_path, '-i', ffmpeg_pat, '-c', 'copy', video_file])
+
+        reencoded_audio_file = self.reencode_audio(audio_file)
         args = (
             (self.ffmpeg_path,),
             ("-y",),
             (
                 "-i",
-                audio_file,
+                reencoded_audio_file,
             ),
             (
                 "-i",
                 video_file,
             ),
             (
-                (
-                    "-c",
-                    "copy",
-                )
-                if not reencode
-                else ()
+                "-vf",
+                "fps=58",
+            ),
+            (
+                "-avoid_negative_ts",
+                "make_zero",
             ),
             ("-xerror",),
             (output_file,),
@@ -47,10 +59,14 @@ class FfmpegRunner:
 
     # Assumes all videos have the same encoding
     def concat_videos(self, videos: [pathlib.Path], output_file: pathlib.Path):
-        with tempfile.NamedTemporaryFile(mode="w") as concat_file:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as concat_file:
+            print(concat_file)
+            print(videos)
+            
             files = ("\n").join(f"file '{video.resolve()}'" for video in videos)
             concat_file.write(files)
             concat_file.flush()
+            # time.sleep(300)
             args = (
                 (self.ffmpeg_path,),
                 ("-y",),
@@ -75,3 +91,30 @@ class FfmpegRunner:
             )
             ffmpeg_args = util.flatten_arg_tuples(args)
             subprocess.run(ffmpeg_args, check=True)
+
+    def reencode_audio(self, audio_path: pathlib.Path):
+        reencoded_path = pathlib.Path(audio_path.parent, "fixed.wav")
+        args = (
+                (self.ffmpeg_path,),
+                ("-y",),
+                (
+                    "-i",
+                    audio_path,
+                ),
+                (
+                    "-ar",
+                    "32000",
+                ),
+                (
+                    "-c:a",
+                    "pcm_s16le",
+                ),
+                (
+                    "-ac",
+                    "2",
+                ),
+                (reencoded_path,),
+            )
+        ffmpeg_args = util.flatten_arg_tuples(args)
+        subprocess.run(ffmpeg_args, check=True)
+        return reencoded_path

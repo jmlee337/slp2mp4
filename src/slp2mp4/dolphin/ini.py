@@ -49,6 +49,13 @@ def make_dolphin_file(userdir: pathlib.Path):
             "DumpAudioSilent": "True",
             "Backend": "ALSA",
         },
+        "Display": {
+            "RenderToMain": "True",
+            "KeepWindowOnTop": "True",
+            "RenderWindowWidth": "1280",
+            "RenderWindowHeight": "1052",
+            "RenderWindowAutoSize": "True"
+        }
     }
     filename = userdir.joinpath("Config", "Dolphin.ini")
     with make_ini_file(filename, settings) as (name, handle):
@@ -61,9 +68,17 @@ def make_gfx_file(userdir: pathlib.Path, user_settings):
     settings = {
         "Settings": {
             "LogRenderTimeToFile": "True",  # Used to monitor render progress
-        },
+            "AspectRatio": "0",
+           
+            # "DumpCodec": "H264",
+            # "MSAA": "8",
+            # "SSAA": "True"
+        }
     }
+    print(f"userdir {userdir}")
     util.update_dict(settings, user_settings)
     filename = userdir.joinpath("Config", "GFX.ini")
     with make_ini_file(filename, settings) as (name, handle):
+        print(name)
+        print(settings)
         yield name

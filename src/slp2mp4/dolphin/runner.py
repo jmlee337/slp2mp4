@@ -24,6 +24,8 @@ class DolphinRunner:
         self.slippi_playback = config["paths"]["slippi_playback"]
         self.ssbm_ini = config["paths"]["ssbm_ini"]
         self.video_backend = config["video"]["backend"]
+        print(config["video"]["resolution"])
+        print(config["video"]["bitrate"])
         self.user_gfx = {
             "Settings": {
                 "EFBScale": config["video"]["resolution"],
@@ -65,27 +67,25 @@ class DolphinRunner:
                     ),
                 )
                 dolphin_args = util.flatten_arg_tuples(args)
-                proc = subprocess.Popen(args=dolphin_args)
-                frames_file = userdir.joinpath("Logs", "render_time.txt")
-                expected_frames = replay.get_expected_number_of_frames()
-                while _get_number_of_frames_rendered(frames_file) < expected_frames:
-                    if proc.poll() is not None:
-                        print("Dolphin terminated early")
-                        break
-                    time.sleep(1)
 
-                # Kills dolphin (if need be) when finished dumping
-                print("Terminating dolphin")
-                proc.terminate()
                 try:
+                    proc = subprocess.Popen(args=dolphin_args)
+                    frames_file = userdir.joinpath("Logs", "render_time.txt")
+                    expected_frames = replay.get_expected_number_of_frames()
+
+                    while _get_number_of_frames_rendered(frames_file) < expected_frames:
+                        if proc.poll() is not None:
+                            print("Dolphin terminated early")
+                            break
+                        time.sleep(1)
+
+                    proc.terminate()
                     proc.wait(timeout=5)
-                except subprocess.TimeoutExpired as t:
-                    print("Timed out waiting for Dolphin to terminate")
-                    proc.kill()
-                if proc.returncode != 0:
-                    raise subprocess.CalledProcessError(
-                        proc.returncode, proc.args, proc.stdout, proc.stderr
-                    )
+                except subprocess.CalledProcessError as e:
+                    print(f"Dolphin failed with error: {e}")
+                    raise
+
+        print(dump_dir)
         audio_file = dump_dir.joinpath("dspdump.wav")
         video_file = dump_dir.joinpath("framedump0.avi")
         return audio_file, video_file

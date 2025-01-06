@@ -4,25 +4,38 @@ import tempfile
 import multiprocessing
 import queue
 import os
+import zipfile
 
 import slp2mp4.video as video
 import slp2mp4.util as util
 import slp2mp4.ffmpeg as ffmpeg
 
 
-def _get_inputs_and_outputs(
-    root: pathlib.Path, in_dir: pathlib.Path, out_dir: pathlib.Path
-):
+
+def _get_inputs_and_outputs(root: pathlib.Path, in_dir: pathlib.Path, out_dir: pathlib.Path):
     outputs = {}
-    slps = list(sorted(in_dir.glob("*.slp"), key=util.natsort))
+    slps = [slp.resolve() for slp in sorted(in_dir.glob("*.slp"), key=util.natsort)]
+    
+    # Process .zip files in the directory
+    for zip_file in in_dir.glob("*.zip"):
+        extraction_dir = out_dir / zip_file.stem
+        extraction_dir.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_file, 'r') as z:
+            z.extractall(extraction_dir)
+        # Recursively process extracted files
+        outputs.update(_get_inputs_and_outputs(root, extraction_dir, out_dir))
+    
     root_name = pathlib.Path(root.resolve().name)
     relative_path = root_name.joinpath(in_dir.relative_to(root))
     name = f"""{out_dir.joinpath(("_").join(relative_path.parts))}.mp4"""
+
     if len(slps) > 0:
         outputs[name] = slps
+
     for child in in_dir.iterdir():
         if child.is_dir():
             outputs = outputs | _get_inputs_and_outputs(root, child, out_dir)
+    
     return outputs
 
 
@@ -54,6 +67,7 @@ def _concat(conf, args, video_queue, inputs_and_outputs):
             continue
         tmpfiles = [outputs[key][path] for path in inputs_and_outputs[key]]
         output_file = key
+        print(f"files to concat: {tmpfiles}")
         if not args.dry_run:
             Ffmpeg.concat_videos([pathlib.Path(t) for t in tmpfiles], output_file)
         for tmp in tmpfiles:
