@@ -16,14 +16,8 @@ USER_CONFIG_FILE = pathlib.Path(".slp2mp4.toml").expanduser()
 def _path(p):
     return pathlib.Path(p).expanduser()
 
-
-def _parse_resolution(r):
-    resolutions = {"480p": "2", "720p": "3", "1080p": "5", "1440p": "6", "2160p": "8"}
-    return resolutions[r]
-
-
 def _parse_parallel(p):
-    return None if (p == 0) else p
+    return 0 if (not isinstance(p, int) or p < 0) else p
 
 
 CONSTRUCTORS = {
@@ -33,8 +27,9 @@ CONSTRUCTORS = {
         "ssbm_ini": _path,
     },
     "video": {
-        "resolution": _parse_resolution,
+        "resolution": str,
         "bitrate": str,
+        "backend": str,
     },
     "runtime": {
         "parallel": _parse_parallel,
@@ -50,7 +45,7 @@ def _apply_constructors(conf: dict, constructors: dict):
             _apply_constructors(conf[k], constructor)
 
 
-def _load_configs(config_files: [pathlib.Path]) -> dict:
+def _load_configs(config_files: list[pathlib.Path]) -> dict:
     # TODO: Try open; skip if not found
     conf = {}
     for file in config_files:

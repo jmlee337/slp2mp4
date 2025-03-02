@@ -18,6 +18,9 @@ def _get_number_of_frames_rendered(frames_file: pathlib.Path) -> int:
     except FileNotFoundError:
         return 0
 
+def _parse_resolution(r):
+    resolutions = {"480p": "2", "720p": "4", "1080p": "6", "1440p": "7", "2160p": "9"}
+    return resolutions[r]
 
 class DolphinRunner:
     def __init__(self, config):
@@ -28,7 +31,7 @@ class DolphinRunner:
         print(config["video"]["bitrate"])
         self.user_gfx = {
             "Settings": {
-                "EFBScale": config["video"]["resolution"],
+                "EFBScale": _parse_resolution(config["video"]["resolution"]),
                 "BitrateKbps": config["video"]["bitrate"],
             },
         }
@@ -40,6 +43,7 @@ class DolphinRunner:
                 comm.make_temp_file(replay) as comm_file,
                 ini.make_dolphin_file(userdir) as dolphin_file,
                 ini.make_gfx_file(userdir, self.user_gfx) as gfx_file,
+                ini.make_gecko_file(userdir) as gecko_file,
             ):
                 args = (
                     (self.slippi_playback,),

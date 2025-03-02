@@ -84,9 +84,15 @@ class SettingsWindow:
         # Backend selection
         ttk.Label(self.video_frame, text="Backend:").pack(anchor="w", padx=5, pady=2)
         self.backend_var = tk.StringVar(value=self.settings["video"]["backend"])
-        ttk.Radiobutton(self.video_frame, text="Software", value="Software", 
+        ttk.Radiobutton(self.video_frame, text="Direct3D 11", value="DX11", 
                        variable=self.backend_var).pack(anchor="w", padx=5)
-        ttk.Radiobutton(self.video_frame, text="Hardware", value="Hardware", 
+        ttk.Radiobutton(self.video_frame, text="Direct3D 12", value="D3D12", 
+                       variable=self.backend_var).pack(anchor="w", padx=5)
+        ttk.Radiobutton(self.video_frame, text="Direct3D 9", value="DX9", 
+                       variable=self.backend_var).pack(anchor="w", padx=5)
+        ttk.Radiobutton(self.video_frame, text="OpenGL", value="OGL", 
+                       variable=self.backend_var).pack(anchor="w", padx=5)
+        ttk.Radiobutton(self.video_frame, text="Vulkan (experimental)", value="Vulkan", 
                        variable=self.backend_var).pack(anchor="w", padx=5)
 
         # Resolution selection

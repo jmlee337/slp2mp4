@@ -18,7 +18,7 @@ def _get_inputs_and_outputs(root: pathlib.Path, in_dir: pathlib.Path, out_dir: p
     
     # Process .zip files in the directory
     for zip_file in in_dir.glob("*.zip"):
-        extraction_dir = out_dir / zip_file.stem
+        extraction_dir = in_dir / zip_file.stem
         extraction_dir.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_file, 'r') as z:
             z.extractall(extraction_dir)
@@ -81,11 +81,12 @@ def run(conf, args):
         os.makedirs(output_directory, exist_ok=True)
     inputs_and_outputs = _get_inputs_and_outputs(path, path, output_directory)
 
+    parallel = conf["runtime"]["parallel"] or os.cpu_count() or 1
     slp_queue = multiprocessing.Queue()
     video_queue = multiprocessing.Queue()
 
     slp_pool = multiprocessing.Pool(
-        conf["runtime"]["parallel"],
+        parallel,
         _render,
         (
             conf,
@@ -114,7 +115,7 @@ def run(conf, args):
                 )
             )
 
-    for i in range(conf["runtime"]["parallel"]):
+    for i in range(parallel):
         slp_queue.put(None)
 
     slp_queue.close()

@@ -18,6 +18,7 @@ def make_ini_file(filename: pathlib.Path, contents: dict):
         ini_parser = configparser.ConfigParser(
             allow_no_value=True, delimiters=("=",), strict=False
         )
+        ini_parser.optionxform = lambda option: option
         for section, options in contents.items():
             ini_parser.add_section(section)
             for opt_name, opt_val in options.items():
@@ -51,10 +52,7 @@ def make_dolphin_file(userdir: pathlib.Path):
         },
         "Display": {
             "RenderToMain": "True",
-            "KeepWindowOnTop": "True",
-            "RenderWindowWidth": "1280",
-            "RenderWindowHeight": "1052",
-            "RenderWindowAutoSize": "True"
+            "KeepWindowOnTop": "False",
         }
     }
     filename = userdir.joinpath("Config", "Dolphin.ini")
@@ -69,8 +67,9 @@ def make_gfx_file(userdir: pathlib.Path, user_settings):
         "Settings": {
             "LogRenderTimeToFile": "True",  # Used to monitor render progress
             "AspectRatio": "0",
-           
-            # "DumpCodec": "H264",
+            "InternalResolutionFrameDumps": "True",
+            "DumpFormamt": "h264",  # No effect unless you rebuild Ishii with your own ffmpeg
+            "DumpEncoder": "h264_nvenc",    # No effect unless you backport this option from mainline
             # "MSAA": "8",
             # "SSAA": "True"
         }
@@ -81,4 +80,16 @@ def make_gfx_file(userdir: pathlib.Path, user_settings):
     with make_ini_file(filename, settings) as (name, handle):
         print(name)
         print(settings)
+        yield name
+
+@contextlib.contextmanager
+def make_gecko_file(userdir: pathlib.Path):
+    settings = {
+        "Gecko": {},
+        "Gecko_Enabled": {
+            "$Optional: Hide Waiting For Game": None
+        }
+    }
+    filename = userdir.joinpath("GameSettings", "GALE01.ini")
+    with make_ini_file(filename, settings) as (name, handle):
         yield name
