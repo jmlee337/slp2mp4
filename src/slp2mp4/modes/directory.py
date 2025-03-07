@@ -1,40 +1,85 @@
 import argparse
+from functools import cmp_to_key
 import pathlib
 import tempfile
 import multiprocessing
 import queue
 import os
 import zipfile
+import json
 
 import slp2mp4.video as video
 import slp2mp4.util as util
 import slp2mp4.ffmpeg as ffmpeg
 
+def _compare_context(a: dict, b: dict):
+    if (a['context'] and a['context']['startgg']):
+        aStartgg = a['context']['startgg']
+    if (b['context'] and b['context']['startgg']):
+        bStartgg = b['context']['startgg']
+    if (not aStartgg and not bStartgg):
+        if a['extraction_dir'] < b['extraction_dir']:
+            return -1
+        if a['extraction_dir'] > b['extraction_dir']:
+            return 1
+        return 0
+    if (aStartgg and not bStartgg):
+        return -1
+    if (not aStartgg and bStartgg):
+        return 1
+    if (aStartgg['phase']['id'] != bStartgg['phase']['id']):
+        return aStartgg['phase']['id'] - bStartgg['phase']['id']
+    if (aStartgg['set']['ordinal'] != None and bStartgg['set']['ordinal'] != None):
+        return aStartgg['set']['ordinal'] - bStartgg['set']['ordinal']
+    return aStartgg['set']['round'] - bStartgg['set']['round']
 
-
-def _get_inputs_and_outputs(root: pathlib.Path, in_dir: pathlib.Path, out_dir: pathlib.Path):
+def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
     outputs = {}
     slps = [slp.resolve() for slp in sorted(in_dir.glob("*.slp"), key=util.natsort)]
-    
-    # Process .zip files in the directory
-    for zip_file in in_dir.glob("*.zip"):
-        extraction_dir = in_dir / zip_file.stem
-        extraction_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(zip_file, 'r') as z:
-            z.extractall(extraction_dir)
-        # Recursively process extracted files
-        outputs.update(_get_inputs_and_outputs(root, extraction_dir, out_dir))
-    
-    root_name = pathlib.Path(root.resolve().name)
-    relative_path = root_name.joinpath(in_dir.relative_to(root))
-    name = f"""{out_dir.joinpath(("_").join(relative_path.parts))}.mp4"""
-
+    try:
+        c_file = open(in_dir / "context.json")
+    except FileNotFoundError:
+        context = None
+    else:
+        with c_file:
+            context = json.load(c_file)
+    if (context and context['startgg']):
+        leftNames = ", ".join(context['scores'][0]['slots'][0]['displayNames'])
+        rightNames = ", ".join(context['scores'][0]['slots'][1]['displayNames'])
+        phase = context['startgg']['phase']['name']
+        round = context['startgg']['set']['fullRoundText']
+        tournament = context['startgg']['tournament']['name']
+        output_file_name = f"""{leftNames} vs {rightNames} — {phase} {round} — {tournament}"""
+    else:
+        output_file_name = in_dir.stem
+    name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
     if len(slps) > 0:
         outputs[name] = slps
 
+    # Procecss subdirs recursively
     for child in in_dir.iterdir():
         if child.is_dir():
-            outputs = outputs | _get_inputs_and_outputs(root, child, out_dir)
+            outputs = outputs | _get_inputs_and_outputs(child, out_dir / child.stem)
+    
+    # Process .zip files recursively
+    zip_metas = []
+    for zip_file in in_dir.glob("*.zip"):
+        zip_meta = {}
+        zip_meta['extraction_dir'] = in_dir / zip_file.stem
+        zip_meta['extraction_dir'].mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_file, 'r') as z:
+            z.extractall(zip_meta['extraction_dir'])
+        try:
+            c = open(zip_meta['extraction_dir'] / "context.json")
+        except FileNotFoundError:
+            zip_meta['context'] = None
+        else:
+            with c:
+                zip_meta['context'] = json.load(c)
+        zip_metas.append(zip_meta)
+
+    for zip_meta in sorted(zip_metas, key=cmp_to_key(_compare_context)):
+        outputs.update(_get_inputs_and_outputs(zip_meta['extraction_dir'], out_dir))
     
     return outputs
 
@@ -79,7 +124,7 @@ def run(conf, args):
     output_directory = args.output_directory
     if not args.dry_run:
         os.makedirs(output_directory, exist_ok=True)
-    inputs_and_outputs = _get_inputs_and_outputs(path, path, output_directory)
+    inputs_and_outputs = _get_inputs_and_outputs(path, output_directory)
 
     parallel = conf["runtime"]["parallel"] or os.cpu_count() or 1
     slp_queue = multiprocessing.Queue()
