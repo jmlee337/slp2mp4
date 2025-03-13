@@ -7,6 +7,7 @@ import queue
 import os
 import zipfile
 import json
+from pathvalidate import sanitize_filename
 
 import slp2mp4.video as video
 import slp2mp4.util as util
@@ -49,7 +50,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
         phase = context['startgg']['phase']['name']
         round = context['startgg']['set']['fullRoundText']
         tournament = context['startgg']['tournament']['name']
-        output_file_name = f"""{leftNames} vs {rightNames} — {phase} {round} — {tournament}"""
+        output_file_name = sanitize_filename(f"""{leftNames} vs {rightNames} — {phase} {round} — {tournament}""")
     else:
         output_file_name = in_dir.stem
     name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
