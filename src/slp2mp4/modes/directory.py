@@ -58,11 +58,6 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
     name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
     if len(slps) > 0 and not os.path.exists(name):
         outputs[name] = slps
-
-    # Procecss subdirs recursively
-    for child in in_dir.iterdir():
-        if child.is_dir():
-            outputs = outputs | _get_inputs_and_outputs(child, out_dir / child.stem, zip_dirs)
     
     # Process .zip files recursively
     zip_metas = []
@@ -84,6 +79,13 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
     for zip_meta in sorted(zip_metas, key=cmp_to_key(_compare_context)):
         zip_dirs.append(zip_meta['extraction_dir'])
         outputs.update(_get_inputs_and_outputs(zip_meta['extraction_dir'], out_dir, zip_dirs))
+
+    # Procecss subdirs recursively exclude zip extraction dirs
+    zip_dirs_list = [zip_meta['extraction_dir'] for zip_meta in zip_metas]
+    zip_dirs_set = set(zip_dirs_list)
+    for child in in_dir.iterdir():
+        if child.is_dir() and child not in zip_dirs_set:
+            outputs = outputs | _get_inputs_and_outputs(child, out_dir / child.stem, zip_dirs)
     
     return outputs
 
