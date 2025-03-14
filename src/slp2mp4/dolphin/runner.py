@@ -1,5 +1,6 @@
 # Wrapper for running dolphin
 
+import asyncio
 import os
 import tempfile
 import time
@@ -10,14 +11,6 @@ import slp2mp4.replay as replay
 import slp2mp4.dolphin.comm as comm
 import slp2mp4.dolphin.ini as ini
 import slp2mp4.util as util
-
-
-def _get_number_of_frames_rendered(frames_file: pathlib.Path) -> int:
-    try:
-        with open(frames_file, "r") as f:
-            return len(list(f))
-    except FileNotFoundError:
-        return 0
 
 def _parse_resolution(r):
     resolutions = {"480p": "2", "720p": "4", "1080p": "6", "1440p": "7", "2160p": "9"}
@@ -70,35 +63,35 @@ class DolphinRunner:
                         "--user",
                         userdir,
                     ),
+                    ("--cout",),
                 )
                 dolphin_args = util.flatten_arg_tuples(args)
 
                 try:
-                    proc = subprocess.Popen(args=dolphin_args)
-                    frames_file = userdir.joinpath("Logs", "render_time.txt")
-                    expected_frames = replay.get_expected_number_of_frames()
+                    proc = subprocess.Popen(args=dolphin_args, stdout=subprocess.PIPE, text=True)
+                    game_end_frame = -124
+                    current_frame = -125
+                    while proc.poll() is None:
+                        line = proc.stdout.readline()
+                        if not line:
+                            break
+                        strip_line = line.rstrip()
+                        if strip_line.startswith("[GAME_END_FRAME] "):
+                            game_end_frame = int(strip_line[17:])
+                        elif strip_line.startswith("[CURRENT_FRAME] "):
+                            current_frame = int(strip_line[16:])
+                        if (current_frame >= game_end_frame):
+                            break
 
-                    last_ten_rendered_frames = [-1] * 10
-                    while last_ten_rendered_frames[9] < expected_frames:
-                        if proc.poll() is not None:
-                            print("Dolphin terminated early")
-                            os.unlink(dump_dir)
-                            raise
-                        last_ten_rendered_frames.append(_get_number_of_frames_rendered(frames_file))
-                        last_ten_rendered_frames.pop(0)
-                        if (last_ten_rendered_frames.count(last_ten_rendered_frames[0]) == 10):
-                            print("Dolphin rendering stalled")
-                            proc.kill()
-                            os.unlink(dump_dir)
-                            raise
-                        time.sleep(1)
+                    if (current_frame != game_end_frame):
+                        print("Dolphin terminated early")
+                        raise
 
-
+                    time.sleep(2)
                     proc.terminate()
                     proc.wait(timeout=5)
                 except subprocess.CalledProcessError as e:
                     print(f"Dolphin failed with error: {e}")
-                    os.unlink(dump_dir)
                     raise
 
         print(dump_dir)

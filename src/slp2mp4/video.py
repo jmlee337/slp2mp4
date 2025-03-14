@@ -1,6 +1,7 @@
 # Logic to orchestrate making a video file from a slippi replay
 
 import pathlib
+import shutil
 import tempfile
 
 import slp2mp4.ffmpeg as ffmpeg
@@ -19,15 +20,16 @@ def render(conf, slp_path: pathlib.Path, output_path: pathlib.Path):
             r = replay.ReplayFile(slp_path)
         except:
             return False
-        retries = 0
+        tries = 0
         while (True):
             try:
                 audio_file, video_file = Dolphin.run_dolphin(r, tmpdir)
                 break
             except:
-                retries += 1
-                if retries < 5:
-                    print(f"dolphin retry #{retries} for {slp_path}")
+                tries += 1
+                if tries < 3:
+                    print(f"dolphin retry #{tries} for {slp_path}")
+                    shutil.rmtree(tmpdir, ignore_errors=True)
                 else:
                     return False
 
