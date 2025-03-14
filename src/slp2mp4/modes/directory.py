@@ -1,6 +1,7 @@
 import argparse
 from functools import cmp_to_key
 import pathlib
+import sys
 import tempfile
 import multiprocessing
 import queue
@@ -54,7 +55,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
     else:
         output_file_name = in_dir.stem
     name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
-    if len(slps) > 0:
+    if len(slps) > 0 and not os.path.exists(name):
         outputs[name] = slps
 
     # Procecss subdirs recursively
@@ -85,7 +86,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
     return outputs
 
 
-def _render(conf, args, slp_queue, video_queue):
+def _render(conf, args, slp_queue: multiprocessing.Queue, video_queue: multiprocessing.Queue):
     while True:
         data = slp_queue.get()
         if data is None:
@@ -93,12 +94,18 @@ def _render(conf, args, slp_queue, video_queue):
         key, path = data
         tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
         if not args.dry_run:
-            video.render(conf, path, pathlib.Path(tmp.name))
+            if not video.render(conf, path, pathlib.Path(tmp.name)):
+                print(f"failed to render {path} for {key}")
+                tmp.close()
+                video_queue.put((key, {path: ""}))
         tmp.close()
         video_queue.put((key, {path: tmp.name}))
 
+def _cleanup(tmpfiles: list):
+    for tmp in tmpfiles:
+        os.unlink(tmp)
 
-def _concat(conf, args, video_queue, inputs_and_outputs):
+def _concat(conf, args, video_queue: multiprocessing.Queue, inputs_and_outputs: dict):
     Ffmpeg = ffmpeg.FfmpegRunner(conf)
     outputs = {}
     while True:
@@ -112,12 +119,17 @@ def _concat(conf, args, video_queue, inputs_and_outputs):
         if len(outputs[key]) < len(inputs_and_outputs[key]):
             continue
         tmpfiles = [outputs[key][path] for path in inputs_and_outputs[key]]
+        for tmp in tmpfiles:
+            if tmp == "":
+                print(f"failed to create {key}", file=sys.stderr)
+                _cleanup(tmpfiles)
+                continue
+
         output_file = key
         print(f"files to concat: {tmpfiles}")
         if not args.dry_run:
             Ffmpeg.concat_videos([pathlib.Path(t) for t in tmpfiles], output_file)
-        for tmp in tmpfiles:
-            os.unlink(tmp)
+        _cleanup(tmpfiles)
 
 
 def run(conf, args):

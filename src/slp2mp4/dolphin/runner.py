@@ -1,5 +1,6 @@
 # Wrapper for running dolphin
 
+import os
 import tempfile
 import time
 import pathlib
@@ -77,16 +78,27 @@ class DolphinRunner:
                     frames_file = userdir.joinpath("Logs", "render_time.txt")
                     expected_frames = replay.get_expected_number_of_frames()
 
-                    while _get_number_of_frames_rendered(frames_file) < expected_frames:
+                    last_ten_rendered_frames = [-1] * 10
+                    while last_ten_rendered_frames[9] < expected_frames:
                         if proc.poll() is not None:
                             print("Dolphin terminated early")
-                            break
+                            os.unlink(dump_dir)
+                            raise
+                        last_ten_rendered_frames.append(_get_number_of_frames_rendered(frames_file))
+                        last_ten_rendered_frames.pop(0)
+                        if (last_ten_rendered_frames.count(last_ten_rendered_frames[0]) == 10):
+                            print("Dolphin rendering stalled")
+                            proc.kill()
+                            os.unlink(dump_dir)
+                            raise
                         time.sleep(1)
+
 
                     proc.terminate()
                     proc.wait(timeout=5)
                 except subprocess.CalledProcessError as e:
                     print(f"Dolphin failed with error: {e}")
+                    os.unlink(dump_dir)
                     raise
 
         print(dump_dir)

@@ -247,7 +247,8 @@ class ConversionArgs:
             args.append("-n")
         args.extend(["directory", str(self.input_dir)])
         try:
-            subprocess.run(args, check=True)
+            completed = subprocess.run(args, check=True, stderr=subprocess.PIPE, text=True)
+            print(completed.stderr)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"CLI command failed: {e}")
 

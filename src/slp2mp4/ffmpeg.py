@@ -72,7 +72,7 @@ class FfmpegRunner:
         )
         ffmpeg_args = util.flatten_arg_tuples(args)
         try:
-            subprocess.run(ffmpeg_args, check=True)
+            subprocess.run(ffmpeg_args, check=True, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             if e.returncode != 3199971767:
                 raise e
@@ -110,4 +110,4 @@ class FfmpegRunner:
                 (output_file,),
             )
             ffmpeg_args = util.flatten_arg_tuples(args)
-            subprocess.run(ffmpeg_args, check=True)
+            subprocess.run(ffmpeg_args, check=True, stderr=subprocess.STDOUT)

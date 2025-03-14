@@ -16,10 +16,25 @@ def render(conf, slp_path: pathlib.Path, output_path: pathlib.Path):
     with tempfile.TemporaryDirectory() as tmpdir_str:
         tmpdir = pathlib.Path(tmpdir_str)
         r = replay.ReplayFile(slp_path)
-        audio_file, video_file = Dolphin.run_dolphin(r, tmpdir)
-        Ffmpeg.merge_audio_and_video(
-            audio_file,
-            video_file,
-            output_path,
-            conf["video"]["reencode_when_merging_audio_and_video"],
-        )
+        retries = 0
+        while (True):
+            try:
+                audio_file, video_file = Dolphin.run_dolphin(r, tmpdir)
+                break
+            except:
+                retries += 1
+                if retries < 5:
+                    print(f"dolphin retry #{retries} for {slp_path}")
+                else:
+                    return False
+
+        try:
+            Ffmpeg.merge_audio_and_video(
+                audio_file,
+                video_file,
+                output_path,
+                conf["video"]["reencode_when_merging_audio_and_video"],
+            )
+            return True
+        except:
+            return False
