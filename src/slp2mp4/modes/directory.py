@@ -1,6 +1,7 @@
 import argparse
 from functools import cmp_to_key
 import pathlib
+import shutil
 import sys
 import tempfile
 import multiprocessing
@@ -35,7 +36,7 @@ def _compare_context(a: dict, b: dict):
         return aStartgg['set']['ordinal'] - bStartgg['set']['ordinal']
     return aStartgg['set']['round'] - bStartgg['set']['round']
 
-def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
+def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dirs: list):
     outputs = {}
     slps = [slp.resolve() for slp in sorted(in_dir.glob("*.slp"), key=util.natsort)]
     try:
@@ -61,7 +62,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
     # Procecss subdirs recursively
     for child in in_dir.iterdir():
         if child.is_dir():
-            outputs = outputs | _get_inputs_and_outputs(child, out_dir / child.stem)
+            outputs = outputs | _get_inputs_and_outputs(child, out_dir / child.stem, zip_dirs)
     
     # Process .zip files recursively
     zip_metas = []
@@ -81,7 +82,8 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path):
         zip_metas.append(zip_meta)
 
     for zip_meta in sorted(zip_metas, key=cmp_to_key(_compare_context)):
-        outputs.update(_get_inputs_and_outputs(zip_meta['extraction_dir'], out_dir))
+        zip_dirs.append(zip_meta['extraction_dir'])
+        outputs.update(_get_inputs_and_outputs(zip_meta['extraction_dir'], out_dir, zip_dirs))
     
     return outputs
 
@@ -137,7 +139,8 @@ def run(conf, args):
     output_directory = args.output_directory
     if not args.dry_run:
         os.makedirs(output_directory, exist_ok=True)
-    inputs_and_outputs = _get_inputs_and_outputs(path, output_directory)
+    zip_dirs = []
+    inputs_and_outputs = _get_inputs_and_outputs(path, output_directory, zip_dirs)
 
     parallel = conf["runtime"]["parallel"] or os.cpu_count() or 1
     slp_queue = multiprocessing.Queue()
@@ -189,6 +192,9 @@ def run(conf, args):
 
     video_pool.close()
     video_pool.join()
+
+    for zip_dir in zip_dirs:
+        shutil.rmtree(zip_dir, ignore_errors=True)
 
     return [(out, inputs) for out, inputs in inputs_and_outputs.items()]
 
