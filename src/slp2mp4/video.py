@@ -15,7 +15,10 @@ def render(conf, slp_path: pathlib.Path, output_path: pathlib.Path):
     Dolphin = dolphin_runner.DolphinRunner(conf)
     with tempfile.TemporaryDirectory() as tmpdir_str:
         tmpdir = pathlib.Path(tmpdir_str)
-        r = replay.ReplayFile(slp_path)
+        try:
+            r = replay.ReplayFile(slp_path)
+        except:
+            return False
         retries = 0
         while (True):
             try:

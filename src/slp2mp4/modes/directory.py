@@ -100,12 +100,14 @@ def _render(conf, args, slp_queue: multiprocessing.Queue, video_queue: multiproc
                 print(f"failed to render {path} for {key}")
                 tmp.close()
                 video_queue.put((key, {path: ""}))
+                continue
         tmp.close()
         video_queue.put((key, {path: tmp.name}))
 
-def _cleanup(tmpfiles: list):
+def _cleanup(tmpfiles: list[str]):
     for tmp in tmpfiles:
-        os.unlink(tmp)
+        if tmp:
+            os.unlink(tmp)
 
 def _concat(conf, args, video_queue: multiprocessing.Queue, inputs_and_outputs: dict):
     Ffmpeg = ffmpeg.FfmpegRunner(conf)
@@ -121,11 +123,15 @@ def _concat(conf, args, video_queue: multiprocessing.Queue, inputs_and_outputs: 
         if len(outputs[key]) < len(inputs_and_outputs[key]):
             continue
         tmpfiles = [outputs[key][path] for path in inputs_and_outputs[key]]
+        failed = False
         for tmp in tmpfiles:
-            if tmp == "":
+            if not tmp:
                 print(f"failed to create {key}", file=sys.stderr)
                 _cleanup(tmpfiles)
-                continue
+                failed = True
+                break
+        if failed:
+            continue
 
         output_file = key
         print(f"files to concat: {tmpfiles}")

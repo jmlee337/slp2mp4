@@ -17,7 +17,12 @@ class ReplayFile:
     def __post_init__(self):
         if not self.slp_path.exists():
             raise FileNotFoundError(f"slp not found: {self.slp_path}")
-        self.slp_data = peppi_py.read_slippi(str(self.slp_path), skip_frames=True)
+        try:
+            self.slp_data = peppi_py.read_slippi(str(self.slp_path), skip_frames=True)
+        except Exception as e:
+            print(f"failed to parse {self.slp_path}:")
+            print(e)
+            raise
 
     def get_slp_filename(self):
         return str(self.slp_path.absolute())
