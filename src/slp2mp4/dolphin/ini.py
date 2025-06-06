@@ -82,6 +82,17 @@ def make_gfx_file(userdir: pathlib.Path, user_settings):
         yield name
 
 @contextlib.contextmanager
+def make_hotkeys_file(userdir: pathlib.Path):
+    settings = {
+        "Hotkeys1": {
+            "Device": "/0/",
+        }
+    }
+    filename = userdir.joinpath("Config", "Hotkeys.ini")
+    with make_ini_file(filename, settings) as (name, handle):
+        yield name
+
+@contextlib.contextmanager
 def make_gecko_file(userdir: pathlib.Path):
     settings = {
         "Gecko": {},
