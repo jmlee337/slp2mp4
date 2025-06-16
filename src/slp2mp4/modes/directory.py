@@ -47,8 +47,8 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
         with c_file:
             context = json.load(c_file)
     if (context and context['startgg']):
-        leftNames = ", ".join(context['scores'][0]['slots'][0]['displayNames'])
-        rightNames = ", ".join(context['scores'][0]['slots'][1]['displayNames'])
+        leftNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant1']])
+        rightNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant2']])
         phase = context['startgg']['phase']['name']
         round = context['startgg']['set']['fullRoundText']
         tournament = context['startgg']['tournament']['name']
