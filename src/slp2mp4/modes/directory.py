@@ -16,23 +16,23 @@ import slp2mp4.util as util
 import slp2mp4.ffmpeg as ffmpeg
 
 def _compare_context(a: dict, b: dict):
-    if (a['context'] and a['context']['startgg']):
+    if ('context' in a and 'startgg' in a['context']):
         aStartgg = a['context']['startgg']
-    if (b['context'] and b['context']['startgg']):
+    if ('context' in b and 'startgg' in b['context']):
         bStartgg = b['context']['startgg']
-    if (not aStartgg and not bStartgg):
+    if (aStartgg is None and bStartgg is None):
         if a['extraction_dir'] < b['extraction_dir']:
             return -1
         if a['extraction_dir'] > b['extraction_dir']:
             return 1
         return 0
-    if (aStartgg and not bStartgg):
+    if (aStartgg is not None and bStartgg is None):
         return -1
-    if (not aStartgg and bStartgg):
+    if (aStartgg is None and bStartgg is not None):
         return 1
     if (aStartgg['phase']['id'] != bStartgg['phase']['id']):
         return aStartgg['phase']['id'] - bStartgg['phase']['id']
-    if (aStartgg['set']['ordinal'] != None and bStartgg['set']['ordinal'] != None):
+    if (aStartgg['set']['ordinal'] is not None and bStartgg['set']['ordinal'] is not None):
         return aStartgg['set']['ordinal'] - bStartgg['set']['ordinal']
     return aStartgg['set']['round'] - bStartgg['set']['round']
 
@@ -46,9 +46,13 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
     else:
         with c_file:
             context = json.load(c_file)
-    if (context and context['startgg']):
-        leftNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant1']])
-        rightNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant2']])
+    if (context is not None and 'startgg' in context):
+        if ('players' in context):
+            leftNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant1']])
+            rightNames = " + ".join([player['name'] + " ⟮" + ", ".join(player['characters']) + "⟯" for player in context['players']['entrant2']])
+        else:
+            leftNames = ", ".join(context['scores'][0]['slots'][0]['displayNames'])
+            rightNames = ", ".join(context['scores'][0]['slots'][1]['displayNames'])
         phase = context['startgg']['phase']['name']
         round = context['startgg']['set']['fullRoundText']
         tournament = context['startgg']['tournament']['name']
@@ -70,11 +74,11 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
         try:
             c = open(zip_meta['extraction_dir'] / "context.json")
         except FileNotFoundError:
-            zip_meta['context'] = None
+            print(f"zip without context.json: {zip_file.name}")
         else:
             with c:
                 zip_meta['context'] = json.load(c)
-        zip_metas.append(zip_meta)
+            zip_metas.append(zip_meta)
 
     for zip_meta in sorted(zip_metas, key=cmp_to_key(_compare_context)):
         zip_dirs.append(zip_meta['extraction_dir'])
