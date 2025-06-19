@@ -67,7 +67,7 @@ def make_gfx_file(userdir: pathlib.Path, user_settings):
         "Settings": {
             "AspectRatio": "0",
             "InternalResolutionFrameDumps": "True",
-            "DumpFormamt": "h264",  # No effect unless you rebuild Ishii with your own ffmpeg
+            "DumpFormat": "h264",  # No effect unless you rebuild Ishii with your own ffmpeg
             "DumpEncoder": "h264_nvenc",    # No effect unless you backport this option from mainline
             # "MSAA": "8",
             # "SSAA": "True"
