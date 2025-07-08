@@ -56,7 +56,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
         phase = context['startgg']['phase']['name']
         round = context['startgg']['set']['fullRoundText']
         tournament = context['startgg']['tournament']['name']
-        output_file_name = sanitize_filename(f"""{leftNames} vs {rightNames} — {phase} {round} — {tournament}""") if context['startgg']['phase']['hasSiblings'] else sanitize_filename(f"""{leftNames} vs {rightNames} — {round} — {tournament}""")
+        output_file_name = sanitize_filename(f"""{leftNames} vs {rightNames} – {phase} {round} – {tournament}""") if context['startgg']['phase']['hasSiblings'] else sanitize_filename(f"""{leftNames} vs {rightNames} – {round} – {tournament}""")
     else:
         output_file_name = in_dir.stem
     name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
