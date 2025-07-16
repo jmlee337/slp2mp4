@@ -9,7 +9,8 @@ import queue
 import os
 import zipfile
 import json
-from pathvalidate import sanitize_filename
+from sanitize_filename import sanitize
+import locale
 
 import slp2mp4.video as video
 import slp2mp4.util as util
@@ -40,7 +41,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
     outputs = {}
     slps = [slp.resolve() for slp in sorted(in_dir.glob("*.slp"), key=util.natsort)]
     try:
-        c_file = open(in_dir / "context.json")
+        c_file = open(in_dir / "context.json", encoding="utf-8")
     except FileNotFoundError:
         context = None
     else:
@@ -56,7 +57,8 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
         phase = context['startgg']['phase']['name']
         round = context['startgg']['set']['fullRoundText']
         tournament = context['startgg']['tournament']['name']
-        output_file_name = sanitize_filename(f"""{leftNames} vs {rightNames} – {phase} {round} – {tournament}""") if context['startgg']['phase']['hasSiblings'] else sanitize_filename(f"""{leftNames} vs {rightNames} – {round} – {tournament}""")
+        raw_file_name = f"""{leftNames} vs {rightNames} – {phase} {round} – {tournament}""" if context['startgg']['phase']['hasSiblings'] else f"""{leftNames} vs {rightNames} – {round} – {tournament}"""
+        output_file_name = sanitize(raw_file_name)
     else:
         output_file_name = in_dir.stem
     name = f"""{out_dir.joinpath(output_file_name)}.mp4"""
