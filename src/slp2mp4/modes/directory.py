@@ -1,16 +1,14 @@
-import argparse
 from functools import cmp_to_key
 import pathlib
 import shutil
 import sys
 import tempfile
 import multiprocessing
-import queue
+import re
 import os
 import zipfile
 import json
 from sanitize_filename import sanitize
-import locale
 
 import slp2mp4.video as video
 import slp2mp4.util as util
@@ -55,7 +53,7 @@ def _get_inputs_and_outputs(in_dir: pathlib.Path, out_dir: pathlib.Path, zip_dir
             leftNames = ", ".join(context['scores'][0]['slots'][0]['displayNames'])
             rightNames = ", ".join(context['scores'][0]['slots'][1]['displayNames'])
         phase = context['startgg']['phase']['name']
-        round = context['startgg']['set']['fullRoundText']
+        round = "".join(re.findall('([A-Z]|[0-9])', context['startgg']['set']['fullRoundText']))
         tournament = context['startgg']['tournament']['name']
         raw_file_name = f"""{leftNames} vs {rightNames} – {phase} {round} – {tournament}""" if context['startgg']['phase']['hasSiblings'] else f"""{leftNames} vs {rightNames} – {round} – {tournament}"""
         output_file_name = sanitize(raw_file_name)
